@@ -133,11 +133,11 @@ export const AuthAPI = {
         return { success: true, token: remote.token, user: userObj };
       }
     } catch (err) {
-      // If the backend returned any error response or authorization rejection, rethrow immediately
-      if (err.status === 400 || err.status === 401 || err.status === 403 || err.message) {
+      // If the backend returned an explicit auth rejection (401/403/Access Denied), rethrow
+      if (err.status === 401 || err.status === 403 || (err.message && err.message.includes('Access Denied'))) {
         throw err;
       }
-      console.warn('[ICETRACK Network Auth Fallback] Remote authentication unavailable, engaging safe local offline store.');
+      console.warn('[ICETRACK Network Auth Fallback] Remote authentication unavailable, engaging safe local offline store:', err);
     }
 
     // Local authentication & offline fallback - strictly enforce authorized officer accounts only

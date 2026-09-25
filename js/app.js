@@ -84,10 +84,9 @@ class IceTrackApp {
 
     if (this.currentOfficer && this.currentUser) {
       try {
-        this.updateOfficerUI();
-        this.applyRoleNavigationRestrictions();
+        this.login(this.currentUser, this.currentOfficer);
       } catch (e) {
-        console.warn('updateOfficerUI warning:', e);
+        console.warn('Session restore login warning:', e);
       }
     }
   }
@@ -798,6 +797,18 @@ class IceTrackApp {
     }
 
     if (roleInput) roleInput.value = role;
+
+    // Auto-fill official authorized credentials for the selected role
+    const credentialsMap = {
+      'admin': { email: 'A@gmail.com', pass: 'Admin@2026' },
+      'manager': { email: 'E@gmail.com', pass: 'EM@2026' },
+      'field_officer': { email: 'F@gmail.com', pass: 'FO@2026' },
+      'logistics_officer': { email: 'L@gmail.com', pass: 'LO@2026' }
+    };
+
+    if (credentialsMap[role]) {
+      this.fillTestCredentials(credentialsMap[role].email, credentialsMap[role].pass);
+    }
   }
 
   fillTestCredentials(email, password) {

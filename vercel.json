@@ -1,0 +1,13 @@
+{
+  "framework": "vite",
+  "rewrites": [
+    {
+      "source": "/api/v1/:match*",
+      "destination": "/api"
+    },
+    {
+      "source": "/api/:match*",
+      "destination": "/api"
+    }
+  ]
+}
