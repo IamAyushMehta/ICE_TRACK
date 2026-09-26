@@ -69,25 +69,71 @@ class IceTrackApp {
     }
 
     // Restore or initialize active officer session from secure storage
+    // Always verify the stored token with the server — never trust localStorage blindly
+    this._restoreSession();
+  }
+
+  async _restoreSession() {
     try {
       const savedUser = StorageService.getItem('icetrack_active_user');
-      if (savedUser) {
+      const token = StorageService.getItem('icetrack_auth_token');
+
+      if (!savedUser || !token) {
+        // No stored session — show login page (default state)
+        return;
+      }
+
+      // Verify token is still valid on the server
+      let verified = false;
+      if (!isLocalFileProtocol()) {
+        try {
+          const res = await fetch('/api/v1/auth/me', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data?.success && data?.user) {
+              // Server confirmed the session — use server-authoritative user data
+              this.currentOfficer = data.user;
+              this.currentUser = data.user.role;
+              verified = true;
+            }
+          }
+        } catch (e) {
+          // Network error: fall back to stored data so offline users aren't locked out
+          console.warn('Token verification network error, falling back to stored session:', e);
+          const parsed = JSON.parse(savedUser);
+          if (parsed && parsed.email && parsed.role) {
+            this.currentOfficer = parsed;
+            this.currentUser = parsed.role;
+            verified = true;
+          }
+        }
+      } else {
+        // Local file:// mode — no server to verify against, trust stored session
         const parsed = JSON.parse(savedUser);
         if (parsed && parsed.email && parsed.role) {
           this.currentOfficer = parsed;
           this.currentUser = parsed.role;
+          verified = true;
         }
       }
-    } catch (e) {
-      console.warn('Officer restore warning:', e);
-    }
 
-    if (this.currentOfficer && this.currentUser) {
-      try {
+      if (verified && this.currentOfficer && this.currentUser) {
         this.login(this.currentUser, this.currentOfficer);
-      } catch (e) {
-        console.warn('Session restore login warning:', e);
+      } else {
+        // Token rejected by server — clear stale session and show login
+        StorageService.removeItem('icetrack_active_user');
+        StorageService.removeItem('icetrack_auth_token');
+        StorageService.removeItem('icetrack_user_email');
+        StorageService.removeItem('icetrack_user_name');
+        StorageService.removeItem('icetrack_user_role');
+        StorageService.removeItem('icetrack_user_station');
+        StorageService.removeItem('icetrack_user_data');
+        console.warn('Stored session was invalid or expired — login required.');
       }
+    } catch (e) {
+      console.warn('Session restore warning:', e);
     }
   }
 
